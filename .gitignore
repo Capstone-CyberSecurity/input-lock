@@ -1,0 +1,22 @@
+# Python 관련
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+
+# VSCode 설정
+.vscode/
+
+# 가상환경
+myenv/
+.venv/
+venv/
+env/
+
+# 환경변수 파일
+.env
+.env.*
+
+# OS별 무시 파일
+.DS_Store
+Thumbs.db
