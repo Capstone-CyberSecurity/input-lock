@@ -2,7 +2,7 @@ import os
 import threading
 import tkinter as tk
 from pynput import keyboard, mouse
-
+from PIL import Image, ImageTk
 
 class InputBlocker:
     def __init__(self) -> None:
@@ -67,14 +67,44 @@ class InputBlocker:
     def show_lock_gui(self):
         self.root = tk.Tk()
         self.root.title("잠금 중")
-        self.root.geometry("300x100")
+        self.root.attributes("-fullscreen", True)  # 전체 화면
         self.root.attributes("-topmost", True)
+        self.root.configure(bg="black")  # 배경색
+
         self.root.protocol("WM_DELETE_WINDOW", lambda: None)  # 닫기 버튼 비활성화
 
-        label = tk.Label(self.root, text="입력이 잠금 상태입니다.\nCtrl+/ 키로 해제하세요.", font=("Arial", 12))
-        label.pack(expand=True)
+        # 이미지 경로 설정
+        image_path = "lock.jpg"  # 실행 파일과 동일 경로에 있어야 함
+
+        # 이미지 로딩 및 라벨로 표시
+        if os.path.exists(image_path):
+            image = Image.open(image_path)
+            try:
+                resample_filter = Image.Resampling.LANCZOS
+            except AttributeError:
+                resample_filter = Image.ANTIALIAS  # Pillow < 10.0 대응
+
+            image = image.resize((1300, 800), resample_filter)
+
+            photo = ImageTk.PhotoImage(image)
+            img_label = tk.Label(self.root, image=photo, bg="black")
+            img_label.image = photo  # 참조 유지
+            img_label.pack(pady=50)
+        else:
+            print(f"[경고] 이미지 파일 '{image_path}'을(를) 찾을 수 없습니다.")
+
+        # 텍스트 라벨
+        label = tk.Label(
+            self.root,
+            text="입력이 잠금 상태입니다.\nCtrl+/ 키로 해제하세요.",
+            font=("Arial", 24),
+            fg="white",
+            bg="black"
+        )
+        label.pack()
 
         self.root.mainloop()
+
 
 
 def main() -> None:
