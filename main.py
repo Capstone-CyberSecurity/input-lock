@@ -2,6 +2,7 @@ import os
 import threading
 from pynput import keyboard, mouse
 from gui import ShowGui
+import usb
 
 class InputBlocker:
     def __init__(self) -> None:
@@ -25,6 +26,11 @@ class InputBlocker:
         self.gui_instance = ShowGui()
         self.root = None
 
+        #usb 관련
+        self.usb_blocker = usb.USBBlocker()
+        
+
+
     def lock_all(self) -> None:
         if self.is_keyboard_locked or self.is_mouse_locked:
             return
@@ -34,6 +40,8 @@ class InputBlocker:
 
         self.is_keyboard_locked = True
         self.is_mouse_locked = True
+
+        self.usb_blocker.set_usb_state(False)
 
         # GUI 띄우기 (별도 쓰레드에서 실행)
         self.gui_thread = threading.Thread(target=self.gui_instance.show_lock_gui)
@@ -51,8 +59,11 @@ class InputBlocker:
         self.is_mouse_locked = False
 
         # GUI 닫기
-        if self.root:
-            self.root.quit()
+        if hasattr(self, 'gui_instance'):
+            self.gui_instance.close_gui()
+
+        if hasattr(self, 'usb_blocker'):
+            self.usb_blocker.restore_original()
 
         print("키보드 / 마우스 잠금이 해제되었습니다.")
         return True
@@ -65,6 +76,8 @@ class InputBlocker:
         return lambda k: f(self.keyboard_listener.canonical(k))
 
 def main() -> None:
+    usb.run_as_admin()
+
     blocker = InputBlocker()
     blocker.lock_all()
 

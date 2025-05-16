@@ -1,7 +1,6 @@
 import winreg
 import ctypes
 import sys
-import os
 
 class USBBlocker:
     REG_PATH = r"SYSTEM\CurrentControlSet\Services\USBSTOR"

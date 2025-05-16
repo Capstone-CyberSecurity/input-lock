@@ -60,3 +60,8 @@ class ShowGui:
         label.pack()
 
         self.root.mainloop()
+ 
+    def close_gui(self):
+        if self.root:
+            self.root.quit()
+
