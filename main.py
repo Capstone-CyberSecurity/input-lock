@@ -24,7 +24,6 @@ class InputBlocker:
         # GUI 관련
         self.gui_thread = None
         self.gui_instance = ShowGui()
-        self.root = None
 
         #usb 관련
         self.usb_blocker = usb.USBBlocker()
