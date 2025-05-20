@@ -24,7 +24,6 @@ class ShowGui:
             except AttributeError:
                 resample_filter = Image.ANTIALIAS
 
-            # 이미지가 화면의 70%를 차지하도록 크기 조정
             target_width = int(screen_width * 0.8)
             target_height = int(screen_height * 0.8)
 
@@ -52,7 +51,7 @@ class ShowGui:
 
         label = tk.Label(
             self.root,
-            text="입력이 잠금 상태입니다.\nCtrl+/ 키로 해제하세요.",
+            text="입력이 잠금 상태입니다.\n해제하려면 NFC를 태그하세요.",
             font=("Arial", 24),
             fg="white",
             bg="black"
