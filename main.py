@@ -1,10 +1,14 @@
 # requirements: pynput, Pillow
+import sys
 import os
 import threading
 from pynput import keyboard, mouse
 from gui import ShowGui
 import usb
 import asyncio
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../AuthServer/AuthPy')))
+from Netlink import network_start
 
 class InputBlocker:
     def __init__(self) -> None:
@@ -77,6 +81,7 @@ class InputBlocker:
         return lambda k: f(self.keyboard_listener.canonical(k))
 
 def run_network():
+    print("연결 시도중...")
     asyncio.run(network_start("com", "00-11-22-33-44-55", "11-11-11-11-11-11"))
 
 def main() -> None:
@@ -90,9 +95,7 @@ def main() -> None:
     blocker = InputBlocker()
     blocker.lock_all()
 
-    while True:
-        pass
-
+    threading.Event().wait()
 
 if __name__ == "__main__":
     main()
