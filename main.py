@@ -1,3 +1,4 @@
+# requirements: pynput, Pillow
 import os
 import threading
 from pynput import keyboard, mouse
