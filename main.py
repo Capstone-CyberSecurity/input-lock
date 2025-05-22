@@ -3,12 +3,13 @@ import threading
 from pynput import keyboard, mouse
 from gui import ShowGui
 import usb
+import asyncio
 
 class InputBlocker:
     def __init__(self) -> None:
         self.key_combination = "<ctrl>+/"
         self.hotkey = keyboard.HotKey(
-            keyboard.HotKey.parse(self.key_combination), self.unlock_and_exit
+            keyboard.HotKey.parse(self.key_combination), self.unlock_all
         )
 
         self.mouse_listener = mouse.Listener(suppress=True)
@@ -74,14 +75,22 @@ class InputBlocker:
     def for_canonical(self, f):
         return lambda k: f(self.keyboard_listener.canonical(k))
 
+def run_network():
+    asyncio.run(network_start("com", "00-11-22-33-44-55", "11-11-11-11-11-11"))
+
 def main() -> None:
     usb.run_as_admin()
+
+    # network_start 백그라운드에서 실행
+    network_thread = threading.Thread(target=run_network)
+    network_thread.daemon = True
+    network_thread.start()
 
     blocker = InputBlocker()
     blocker.lock_all()
 
-    # 무한 루프 대신 CPU 점유율이 낮은 방식으로 대기
-    threading.Event().wait()
+    while True:
+        pass
 
 
 if __name__ == "__main__":
