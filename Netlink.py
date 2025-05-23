@@ -2,12 +2,21 @@
 
 import socket
 import struct
+import threading
 import asyncio
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import os
+import hashlib
 from enum import IntEnum
+
+class DeviceConfig:
+    device_name = "Null"
+    nic_mac_string = "00-00-00-00-00-00"
+    uid_string = "Null"
+
+
 
 class PacketType(IntEnum):
     LOGIN = 0x0001,
@@ -18,6 +27,9 @@ class PacketType(IntEnum):
     CONNECT = 0x0020,
     HEART = 0x0021,
     BEAT = 0x0022,
+    DBCHECK_REC = 0x0030,
+    DBCHECK_VAL = 0x0031,
+    ORDER_TO_CLI = 0x0040
 #  00-00-00-01    00-00-00-07-61-73-64-66-61-73-64-00    00-00-10-00-00-00-00-00-00-00-00-00-00-00-00-00    00-00-00-00-00-00-00
 #  00-00-00-01    00-00-00-0C-00-00-00-00-00-00-00-00    00-00-00-00-00-00-00-10-00-00-00-00-00-00-00-00    00-00-00-00-00-00-00-00-00-00-00-08-61-73-64-66-61-73-64-66 [asdfasdf]
 class Packet:
@@ -105,6 +117,12 @@ async def recv_packet(reader):
 
 async def network_start(device_name, nic_mac_string, uid_string="none"):
     reader, writer = await asyncio.open_connection("ajsj123.iptime.org", 39990)
+
+    device = DeviceConfig()
+    device.device_name = device_name
+    device.nic_mac_string = nic_mac_string
+    device.uid_string = uid_string
+
     print("서버에 연결됨")
 
     crypto = Crypto()
@@ -135,8 +153,8 @@ async def network_start(device_name, nic_mac_string, uid_string="none"):
             await send_packet(writer, Packet(PacketType.NIC, iv=iv_nic, tag=tag_nic, data=ct_nic))
             print(f"NIC MAC: {nic_mac_string} 전송 완료")
 
-            await send_packet(writer, Packet(PacketType.UID, iv=iv_uid, tag=tag_uid, data=ct_uid))
-            print(f"UID: {uid_string} 전송 완료")
+            #await send_packet(writer, Packet(PacketType.UID, iv=iv_uid, tag=tag_uid, data=ct_uid))
+            #print(f"UID: {uid_string} 전송 완료")
         elif packet.packet_type == PacketType.CONNECT:
             print("연결 성공! 메시지 루프 진입")
             break
@@ -154,13 +172,45 @@ async def network_start(device_name, nic_mac_string, uid_string="none"):
 
             if packet.packet_type == PacketType.HEART:
                 iv = os.urandom(12)
-                ct, tag = crypto.aes_encrypt(iv, b'\x10')
-                await send_packet(writer, Packet(PacketType.BEAT, ct, iv, tag))
+                plaintext_heartbeat = device.nic_mac_string.encode()
+
+                # bec일 경우 해시 처리
+                if device.device_name == "bec":
+                    hash_input = device.nic_mac_string + device.uid_string
+                    sha256 = hashlib.sha256()
+                    sha256.update(hash_input.encode())
+                    plaintext_heartbeat = sha256.digest()
+                    print("해시 처리된 메시지:", plaintext_heartbeat.hex())
+
+                ct, tag = crypto.aes_encrypt(iv, plaintext_heartbeat)
+                await send_packet(writer, Packet(packet_type=PacketType.BEAT, data=ct, iv=iv, tag=tag))
                 print("BEAT 응답 전송 완료")
+
+            elif packet.packet_type == PacketType.ORDER_TO_CLI and device.device_name == "com":
+                if(plaintext == "Open"):
+                    print("컴퓨터 차단 해제")
+                elif(plaintext == "Close"):
+                    print("컴퓨터 차단")
+
         except Exception as e:
             print("연결 종료:", e)
             break
 
+#bec은 태그 후 값 전송
+#com은 태그 반환 후 처리
+#def input_loop():
+    #while True:
+        #try:
+            #msg = input("메시지 입력 (종료하려면 Ctrl+C): ")
+            #print(f"입력: {msg}")
+        #except KeyboardInterrupt:
+            #print("종료")
+            #break
+
 if __name__ == "__main__":
-    devicename = input("장치 이름 입력(컴 차단은 com, 비콘은 bec): ")
+    devicename = input("장치 이름 입력(컴 차단은 com, 비콘은 bec, DB는 dbs): ")
+
+    #input_thread = threading.Thread(target=input_loop)
+    #input_thread.start()
+
     asyncio.run(network_start(devicename, "00-00-00-00-00-00", "11-11-11-11-11-11"))
