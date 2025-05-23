@@ -7,9 +7,7 @@ from gui import ShowGui
 import usb
 import asyncio
 import queue
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../AuthServer/AuthPy')))
-from Netlink import network_start
+import Netlink
 
 class InputBlocker:
     def __init__(self,control_queue: queue.Queue) -> None:
