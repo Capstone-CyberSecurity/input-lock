@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import os
 import hashlib
 from enum import IntEnum
+import queue
+import time
 
 class DeviceConfig:
     device_name = "Null"
@@ -115,7 +117,7 @@ async def recv_packet(reader):
     data = await reader.readexactly(length)
     return Packet.from_bytes(data)
 
-async def network_start(device_name, nic_mac_string, uid_string="none"):
+async def network_start(device_name, nic_mac_string, uid_string="none", control_queue=None):
     reader, writer = await asyncio.open_connection("ajsj123.iptime.org", 39990)
 
     device = DeviceConfig()
@@ -162,6 +164,9 @@ async def network_start(device_name, nic_mac_string, uid_string="none"):
             print("로그인 실패")
             return
 
+    last_open_time = time.time()
+    open_timeout = 5  # 초 단위
+
     while True:
         try:
             packet = await recv_packet(reader)
@@ -187,10 +192,17 @@ async def network_start(device_name, nic_mac_string, uid_string="none"):
                 print("BEAT 응답 전송 완료")
 
             elif packet.packet_type == PacketType.ORDER_TO_CLI and device.device_name == "com":
-                if(plaintext == "Open"):
-                    print("컴퓨터 차단 해제")
-                elif(plaintext == "Close"):
-                    print("컴퓨터 차단")
+                if plaintext == "Open":
+                    print("Open 패킷 수신")
+                    last_open_time = time.time()
+                    if control_queue:
+                        control_queue.put("unlock")
+            # 타임아웃 체크
+                if (time.time() - last_open_time) > open_timeout:
+                    print("Open 패킷 누락: 차단")
+                    last_open_time = time.time()  # 중복 차단 방지
+                    if control_queue:
+                        control_queue.put("lock")
 
         except Exception as e:
             print("연결 종료:", e)
@@ -207,10 +219,18 @@ async def network_start(device_name, nic_mac_string, uid_string="none"):
             #print("종료")
             #break
 
+
+# 1초마다 pop 시도하는 스레드 함수
+def queue_worker():
+    while True:
+        pop_from_com_queue()
+        time.sleep(2)
+
 if __name__ == "__main__":
     devicename = input("장치 이름 입력(컴 차단은 com, 비콘은 bec, DB는 dbs): ")
 
-    #input_thread = threading.Thread(target=input_loop)
-    #input_thread.start()
+    # 스레드 시작
+    queue_thread = threading.Thread(target=queue_worker, daemon=True)
+    queue_thread.start()
 
     asyncio.run(network_start(devicename, "00-00-00-00-00-00", "11-11-11-11-11-11"))

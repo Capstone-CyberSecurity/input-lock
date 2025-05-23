@@ -8,6 +8,7 @@ import usb
 import asyncio
 import queue
 import Netlink
+import time
 
 class InputBlocker:
     def __init__(self,control_queue: queue.Queue) -> None:
@@ -81,9 +82,9 @@ class InputBlocker:
     def for_canonical(self, f):
         return lambda k: f(self.keyboard_listener.canonical(k))
 
-def run_network():
+def run_network(control_queue):
     print("연결 시도중...")
-    asyncio.run(network_start("com", "00-11-22-33-44-55", "11-11-11-11-11-11"))
+    asyncio.run(Netlink.network_start("com", "00-11-22-33-44-55", "11-11-11-11-11-11",control_queue))
 
 def main() -> None:
     usb.run_as_admin()
@@ -91,25 +92,25 @@ def main() -> None:
     control_queue = queue.Queue()
 
     # network_start 백그라운드에서 실행
-    network_thread = threading.Thread(target=run_network)
+    network_thread = threading.Thread(target=run_network,args=(control_queue,))
     network_thread.daemon = True
     network_thread.start()
 
-    blocker = InputBlocker()
+    blocker = InputBlocker(control_queue)
     blocker.lock_all()
 
-    threading.Event().wait()
+#     threading.Event().wait()
 
-#     while True:
-#             try:
-#                 message = control_queue.get(timeout=1)
-#                 if message == "TOGGLE_LOCK":
-#                     if blocker.is_keyboard_locked:
-#                         blocker.unlock_all()
-#                     else:
-#                         blocker.lock_all()
-#             except queue.Empty:
-#                 continue
+# control_queue를 폴링하여 lock/unlock 수행
+    while True:
+        try:
+            command = control_queue.get(timeout=1)
+            if command == "lock":
+                blocker.lock_all()
+            elif command == "unlock":
+                blocker.unlock_all()
+        except queue.Empty:
+            pass  # 큐에 아무 명령도 없으면 무시
 
 if __name__ == "__main__":
     main()
