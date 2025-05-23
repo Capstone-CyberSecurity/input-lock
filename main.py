@@ -6,12 +6,15 @@ from pynput import keyboard, mouse
 from gui import ShowGui
 import usb
 import asyncio
+import queue
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../AuthServer/AuthPy')))
 from Netlink import network_start
 
 class InputBlocker:
-    def __init__(self) -> None:
+    def __init__(self,control_queue: queue.Queue) -> None:
+        self.control_queue = control_queue  # 큐 주입
+
         self.key_combination = "<ctrl>+/"
         self.hotkey = keyboard.HotKey(
             keyboard.HotKey.parse(self.key_combination), self.unlock_all
@@ -87,6 +90,8 @@ def run_network():
 def main() -> None:
     usb.run_as_admin()
 
+    control_queue = queue.Queue()
+
     # network_start 백그라운드에서 실행
     network_thread = threading.Thread(target=run_network)
     network_thread.daemon = True
@@ -96,6 +101,17 @@ def main() -> None:
     blocker.lock_all()
 
     threading.Event().wait()
+
+#     while True:
+#             try:
+#                 message = control_queue.get(timeout=1)
+#                 if message == "TOGGLE_LOCK":
+#                     if blocker.is_keyboard_locked:
+#                         blocker.unlock_all()
+#                     else:
+#                         blocker.lock_all()
+#             except queue.Empty:
+#                 continue
 
 if __name__ == "__main__":
     main()
