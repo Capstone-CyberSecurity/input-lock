@@ -7,6 +7,7 @@ class USBBlocker:
 
     def __init__(self):
         self.original_value = None
+        self.current_enabled = None
 
     def is_admin(self):
         try:
@@ -15,12 +16,16 @@ class USBBlocker:
             return False
 
     def set_usb_state(self, enable: bool):
+        if self.current_enabled == enable:
+                    return
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, self.REG_PATH, 0, winreg.KEY_ALL_ACCESS) as key:
-                self.original_value, _ = winreg.QueryValueEx(key, "Start")
+                if self.original_value is None:
+                    self.original_value, _ = winreg.QueryValueEx(key, "Start")
 
                 new_value = 3 if enable else 4
                 winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, new_value)
+                self.current_enabled = enable
 
                 print(f"USB {'활성화' if enable else '비활성화'} 완료.")
         except PermissionError:
@@ -32,6 +37,7 @@ class USBBlocker:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, self.REG_PATH, 0, winreg.KEY_ALL_ACCESS) as key:
                 winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, self.original_value)
             print("원래 USB 설정으로 복구 완료.")
+            self.current_enabled = (self.original_value == 3)
 
 # 관리자 권한으로 다시 실행
 def run_as_admin():

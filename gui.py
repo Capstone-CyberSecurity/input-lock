@@ -61,6 +61,7 @@ class ShowGui:
         self.root.mainloop()
  
     def close_gui(self):
-        if self.root:
-            self.root.quit()
+        if hasattr(self, 'root') and self.root:
+            self.root.destroy()
+            self.root = None
 

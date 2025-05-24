@@ -45,6 +45,11 @@ class InputBlocker:
         if self.mouse_listener.is_alive():
             return  # 이미 실행 중
 
+        if self.gui_thread and self.gui_thread.is_alive():
+            return
+
+
+
         self.mouse_listener = mouse.Listener(suppress=True)
         self.keyboard_listener = keyboard.Listener(
             suppress=True,
@@ -114,7 +119,7 @@ def main() -> None:
             blocker.lock_all()
         else:
             blocker.unlock_all()
-        time.sleep(0.5)
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
