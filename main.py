@@ -15,16 +15,23 @@ class InputBlocker:
         self.control_queue = control_queue  # 큐 주입
 
         self.key_combination = "<ctrl>+/"
+
+#         self.mouse_listener = mouse.Listener(suppress=True)
+        self.mouse_listener = None
+
+        # 핫키 처리 객체 (한 번만 생성)
         self.hotkey = keyboard.HotKey(
             keyboard.HotKey.parse(self.key_combination), self.unlock_all
         )
 
-        self.mouse_listener = mouse.Listener(suppress=True)
+        # 키보드 리스너 (한 번만 생성)
         self.keyboard_listener = keyboard.Listener(
             suppress=True,
-            on_press=self.for_canonical(self.hotkey.press),
-            on_release=self.for_canonical(self.hotkey.release),
+            on_press=self._on_key_press,
+            on_release=self._on_key_release
         )
+        self.keyboard_listener.daemon = True
+        self.keyboard_listener.start()
 
         self.is_keyboard_locked = False
         self.is_mouse_locked = False
@@ -36,45 +43,45 @@ class InputBlocker:
         #usb 관련
         self.usb_blocker = usb.USBBlocker()
         
+    def _on_key_press(self, key):
+        try:
+            self.hotkey.press(self.keyboard_listener.canonical(key))
+        except Exception as e:
+            print("핫키 press 오류:", e)
 
+    def _on_key_release(self, key):
+        try:
+            self.hotkey.release(self.keyboard_listener.canonical(key))
+        except Exception as e:
+            print("핫키 release 오류:", e)
 
     def lock_all(self) -> None:
         if self.is_keyboard_locked or self.is_mouse_locked:
             return
 
-        if self.mouse_listener.is_alive():
-            return  # 이미 실행 중
-
-        if self.gui_thread and self.gui_thread.is_alive():
-            return
-
-
-
-        self.mouse_listener = mouse.Listener(suppress=True)
-        self.keyboard_listener = keyboard.Listener(
-            suppress=True,
-            on_press=self.for_canonical(self.hotkey.press),
-            on_release=self.for_canonical(self.hotkey.release),
-        )
-        self.mouse_listener.start()
-        self.keyboard_listener.start()
+        if not self.mouse_listener or not self.mouse_listener.is_alive():
+            self.mouse_listener = mouse.Listener(suppress=True)
+            self.mouse_listener.daemon = True
+            self.mouse_listener.start()
 
         self.is_keyboard_locked = True
         self.is_mouse_locked = True
 
-        self.usb_blocker.set_usb_state(False)
+        if hasattr(self.usb_blocker, 'set_usb_state'):
+                    self.usb_blocker.set_usb_state(False)
 
-        # GUI 띄우기 (별도 쓰레드에서 실행)
-        self.gui_thread = threading.Thread(target=self.gui_instance.show_lock_gui)
-        self.gui_thread.daemon = True
-        self.gui_thread.start()
+        if not self.gui_thread or not self.gui_thread.is_alive():
+            self.gui_thread = threading.Thread(target=self.gui_instance.show_lock_gui)
+            self.gui_thread.daemon = True
+            self.gui_thread.start()
 
     def unlock_all(self) -> bool:
         if not self.is_keyboard_locked and not self.is_mouse_locked:
             return False
 
-        self.mouse_listener.stop()
-        self.keyboard_listener.stop()
+        if self.mouse_listener and self.mouse_listener.running:
+            self.mouse_listener.stop()
+#         self.keyboard_listener.stop()
 
         self.is_keyboard_locked = False
         self.is_mouse_locked = False
@@ -119,7 +126,7 @@ def main() -> None:
             blocker.lock_all()
         else:
             blocker.unlock_all()
-        time.sleep(1)
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()

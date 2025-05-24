@@ -1,8 +1,12 @@
 import os
 import tkinter as tk
 from PIL import Image, ImageTk
+import queue
 
 class ShowGui:
+    def __init__(self):
+        self.root = None
+        self.close_request_queue = queue.Queue()
     def show_lock_gui(self):
         self.root = tk.Tk()
         self.root.title("잠금 중")
@@ -58,10 +62,25 @@ class ShowGui:
         )
         label.pack()
 
+        self.check_close_request()
+
         self.root.mainloop()
+
+    def check_close_request(self):
+        try:
+            if not self.close_request_queue.empty():
+                self.close_request_queue.get_nowait()
+                self.root.destroy()
+                self.root = None
+                return  # 더 이상 mainloop 실행 안 함
+        except Exception as e:
+            print("GUI 종료 오류:", e)
+        self.root.after(100, self.check_close_request)  # 계속 체크
  
     def close_gui(self):
-        if hasattr(self, 'root') and self.root:
-            self.root.destroy()
-            self.root = None
+        self.close_request_queue.put(True)
+#         if hasattr(self, 'root') and self.root:
+#             self.root.destroy()
+#             self.root = None
+
 
