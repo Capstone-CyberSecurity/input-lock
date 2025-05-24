@@ -84,7 +84,7 @@ class InputBlocker:
 
 def run_network(control_queue):
     print("연결 시도중...")
-    asyncio.run(Netlink.network_start("com", "00-11-22-33-44-55", "11-11-11-11-11-11",control_queue))
+    asyncio.run(Netlink.network_start("com", "70-85-C2-C1-6D-28", "11-11-11-11-11-11", control_queue))
 
 def main() -> None:
     usb.run_as_admin()
