@@ -13,6 +13,25 @@ from enum import IntEnum
 import queue
 import time
 
+com_queue = queue.Queue()
+
+def is_empty_com_queue():
+    return com_queue.empty()
+
+def add_to_com_queue(data):
+    com_queue.put(data)
+
+def pop_from_com_queue():
+    if not com_queue.empty():
+        return com_queue.get()
+    else:
+        return None
+
+def file_io(filepath):
+    with open(filepath, 'r') as file:
+        data = file.read().strip()
+    return data
+
 class DeviceConfig:
     device_name = "Null"
     nic_mac_string = "00-00-00-00-00-00"
@@ -164,9 +183,9 @@ async def network_start(device_name, nic_mac_string, uid_string="none", control_
             print("로그인 실패")
             return
 
-    last_open_time = time.time()
-    open_timeout = 5  # 초 단위
-
+#     last_open_time = time.time()
+#     open_timeout = 5  # 초 단위
+#     com_queue = control_queue
     while True:
         try:
             packet = await recv_packet(reader)
@@ -174,6 +193,10 @@ async def network_start(device_name, nic_mac_string, uid_string="none", control_
 
             plaintext = crypto.aes_decrypt(packet.iv, packet.data, packet.tag)
             print("복호화 결과:", plaintext)
+
+#             pop_from_com_queue()
+            if not control_queue.empty():
+                control_queue.get()
 
             if packet.packet_type == PacketType.HEART:
                 iv = os.urandom(12)
@@ -194,18 +217,20 @@ async def network_start(device_name, nic_mac_string, uid_string="none", control_
             elif packet.packet_type == PacketType.ORDER_TO_CLI and device.device_name == "com":
                 if plaintext == "Open":
                     print("Open 패킷 수신")
-                    last_open_time = time.time()
-                    if control_queue:
-                        control_queue.put("unlock")
+                    while not control_queue.full():
+                        control_queue.put(object()) #더미 값
+
             # 타임아웃 체크
-                if (time.time() - last_open_time) > open_timeout:
-                    print("Open 패킷 누락: 차단")
-                    last_open_time = time.time()  # 중복 차단 방지
-                    if control_queue:
-                        control_queue.put("lock")
+#                 if (time.time() - last_open_time) > open_timeout:
+#                     print("Open 패킷 누락: 차단")
+#                     last_open_time = time.time()  # 중복 차단 방지
+#                     if control_queue:
+#                         control_queue.put("lock")
 
         except Exception as e:
             print("연결 종료:", e)
+            with control_queue.mutex:
+                control_queue.queue.clear()
             break
 
 #bec은 태그 후 값 전송
@@ -228,9 +253,4 @@ def queue_worker():
 
 if __name__ == "__main__":
     devicename = input("장치 이름 입력(컴 차단은 com, 비콘은 bec, DB는 dbs): ")
-
-    # 스레드 시작
-    queue_thread = threading.Thread(target=queue_worker, daemon=True)
-    queue_thread.start()
-
     asyncio.run(network_start(devicename, "00-00-00-00-00-00", "11-11-11-11-11-11"))

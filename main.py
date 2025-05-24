@@ -42,6 +42,12 @@ class InputBlocker:
         if self.is_keyboard_locked or self.is_mouse_locked:
             return
 
+        self.mouse_listener = mouse.Listener(suppress=True)
+        self.keyboard_listener = keyboard.Listener(
+            suppress=True,
+            on_press=self.for_canonical(self.hotkey.press),
+            on_release=self.for_canonical(self.hotkey.release),
+        )
         self.mouse_listener.start()
         self.keyboard_listener.start()
 
@@ -89,7 +95,7 @@ def run_network(control_queue):
 def main() -> None:
     usb.run_as_admin()
 
-    control_queue = queue.Queue()
+    control_queue = queue.Queue(maxsize=4)
 
     # network_start 백그라운드에서 실행
     network_thread = threading.Thread(target=run_network,args=(control_queue,))
@@ -99,18 +105,13 @@ def main() -> None:
     blocker = InputBlocker(control_queue)
     blocker.lock_all()
 
-#     threading.Event().wait()
-
-# control_queue를 폴링하여 lock/unlock 수행
+ # 주기적으로 큐 상태를 확인하여 lock/unlock 수행
     while True:
-        try:
-            command = control_queue.get(timeout=1)
-            if command == "lock":
-                blocker.lock_all()
-            elif command == "unlock":
-                blocker.unlock_all()
-        except queue.Empty:
-            pass  # 큐에 아무 명령도 없으면 무시
+        if control_queue.empty():
+            blocker.lock_all()
+        else:
+            blocker.unlock_all()
+        time.sleep(0.5)
 
 if __name__ == "__main__":
     main()
