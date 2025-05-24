@@ -42,6 +42,9 @@ class InputBlocker:
         if self.is_keyboard_locked or self.is_mouse_locked:
             return
 
+        if self.mouse_listener.is_alive():
+            return  # 이미 실행 중
+
         self.mouse_listener = mouse.Listener(suppress=True)
         self.keyboard_listener = keyboard.Listener(
             suppress=True,
