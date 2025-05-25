@@ -13,19 +13,7 @@ from enum import IntEnum
 import queue
 import time
 
-com_queue = queue.Queue()
 
-def is_empty_com_queue():
-    return com_queue.empty()
-
-def add_to_com_queue(data):
-    com_queue.put(data)
-
-def pop_from_com_queue():
-    if not com_queue.empty():
-        return com_queue.get()
-    else:
-        return None
 
 def file_io(filepath):
     with open(filepath, 'r') as file:
@@ -183,9 +171,6 @@ async def network_start(device_name, nic_mac_string, uid_string="none", control_
             print("로그인 실패")
             return
 
-#     last_open_time = time.time()
-#     open_timeout = 5  # 초 단위
-#     com_queue = control_queue
     while True:
         try:
             packet = await recv_packet(reader)
@@ -215,17 +200,12 @@ async def network_start(device_name, nic_mac_string, uid_string="none", control_
                 print("BEAT 응답 전송 완료")
 
             elif packet.packet_type == PacketType.ORDER_TO_CLI and device.device_name == "com":
-                if plaintext == "Open":
+                if plaintext.decode() == "Open":
                     print("Open 패킷 수신")
                     while not control_queue.full():
                         control_queue.put(object()) #더미 값
 
-            # 타임아웃 체크
-#                 if (time.time() - last_open_time) > open_timeout:
-#                     print("Open 패킷 누락: 차단")
-#                     last_open_time = time.time()  # 중복 차단 방지
-#                     if control_queue:
-#                         control_queue.put("lock")
+
 
         except Exception as e:
             print("연결 종료:", e)
@@ -233,23 +213,7 @@ async def network_start(device_name, nic_mac_string, uid_string="none", control_
                 control_queue.queue.clear()
             break
 
-#bec은 태그 후 값 전송
-#com은 태그 반환 후 처리
-#def input_loop():
-    #while True:
-        #try:
-            #msg = input("메시지 입력 (종료하려면 Ctrl+C): ")
-            #print(f"입력: {msg}")
-        #except KeyboardInterrupt:
-            #print("종료")
-            #break
 
-
-# 1초마다 pop 시도하는 스레드 함수
-def queue_worker():
-    while True:
-        pop_from_com_queue()
-        time.sleep(2)
 
 if __name__ == "__main__":
     devicename = input("장치 이름 입력(컴 차단은 com, 비콘은 bec, DB는 dbs): ")
