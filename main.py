@@ -17,25 +17,7 @@ class InputBlocker:
         self.key_combination = "<ctrl>+/"
 
         self.mouse_listener = None
-
-        # 핫키 입력 시 키보드 마우스 잠금만 해제하는 코드
-        self.hotkey = keyboard.HotKey(
-            keyboard.HotKey.parse(self.key_combination), self.unlock_all
-        )
-
-        # 핫키 입력 시 프로그램을 강제 종료하는 코드
-#         self.hotkey = keyboard.HotKey(
-#                     keyboard.HotKey.parse(self.key_combination), self.unlock_and_exit
-#         )
-
-        # 키보드 리스너 (한 번만 생성)
-        self.keyboard_listener = keyboard.Listener(
-            suppress=True,
-            on_press=self._on_key_press,
-            on_release=self._on_key_release
-        )
-        self.keyboard_listener.daemon = True
-        self.keyboard_listener.start()
+        self.keyboard_listener = None
 
         self.is_keyboard_locked = False
         self.is_mouse_locked = False
@@ -46,7 +28,7 @@ class InputBlocker:
 
         #usb 관련
         self.usb_blocker = usb.USBBlocker()
-        
+
     def _on_key_press(self, key):
         try:
             self.hotkey.press(self.keyboard_listener.canonical(key))
@@ -68,6 +50,23 @@ class InputBlocker:
             self.mouse_listener.daemon = True
             self.mouse_listener.start()
 
+        if not self.keyboard_listener or not self.keyboard_listener.is_alive():
+            # 핫키 입력 시 키보드 마우스 잠금만 해제하는 코드
+            self.hotkey = keyboard.HotKey(
+                keyboard.HotKey.parse(self.key_combination), self.unlock_all
+            )
+            # 핫키 입력 시 프로그램을 강제 종료하는 코드
+#             self.hotkey = keyboard.HotKey(
+#                 keyboard.HotKey.parse(self.key_combination), self.unlock_and_exit
+#             )
+            self.keyboard_listener = keyboard.Listener(
+                suppress=True,
+                on_press=self._on_key_press,
+                on_release=self._on_key_release
+            )
+            self.keyboard_listener.daemon = True
+            self.keyboard_listener.start()
+
         self.is_keyboard_locked = True
         self.is_mouse_locked = True
 
@@ -85,6 +84,9 @@ class InputBlocker:
 
         if self.mouse_listener and self.mouse_listener.running:
             self.mouse_listener.stop()
+
+        if self.keyboard_listener and self.keyboard_listener.running:
+            self.keyboard_listener.stop()
 
         self.is_keyboard_locked = False
         self.is_mouse_locked = False
@@ -128,9 +130,8 @@ def main() -> None:
             blocker.lock_all()
         else:
             blocker.unlock_all()
-
         # sleep하는 시간으로 큐가 비어있는지 감시하는 빈도를 조절
-        time.sleep(3)
+        time.sleep(7)
 
 if __name__ == "__main__":
     main()
